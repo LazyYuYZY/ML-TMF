@@ -2,7 +2,9 @@ $Sketch_name$={cm, tower, cu, count}
 
 ## 真实数据集：
 
-1.editcap.exe 切割 MAWI数据
+1.wareshake打开终端editcap.exe 切割 MAWI数据***数据集过大就不放置分割后的文件夹***
+.\editcap -i 5 .\202311011400.pcap .\traindata_set_5s\traindata_pcap_5s\20240103_5s.pcap
+(.\editcap -i $T_slice$ .\$trace$ $foldername$\$filename$)
 
 2.changefname.py 修改文件名
 
@@ -22,6 +24,6 @@ $Sketch_name$={cm, tower, cu, count}
 
 ## 其他：
 
-合成数据集
+合成数据集：get_zipf_flowsdata
 
 其他机器学习方法实现
