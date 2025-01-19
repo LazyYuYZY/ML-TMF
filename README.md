@@ -6,7 +6,7 @@ $Sketch_name$={cm, tower, cu, count}
 
 .\editcap -i 5 .\202311011400.pcap .\traindata_set_5s\traindata_pcap_5s\20240103_5s.pcap
 
-(.\editcap -i $T\_slice$ .\$trace$ $foldername$\$filename$)
+(.\editcap -i $T\_slice$ .\ $trace$ $foldername$ \ $filename$)
 
 2.changefname.py 修改文件名
 
