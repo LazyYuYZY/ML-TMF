@@ -1,4 +1,4 @@
-$Sketch\_name$={cm, tower, cu, count}
+Sketch_name={cm, tower, cu, count}
 
 ## 真实数据集：
 
