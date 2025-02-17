@@ -1,4 +1,4 @@
-$Sketch_name$={cm, tower, cu, count}
+$Sketch\_name$={cm, tower, cu, count}
 
 ## 真实数据集：
 
@@ -22,7 +22,7 @@ $Sketch_name$={cm, tower, cu, count}
 5.2.GAT/GAT_DNN_d.py 训练优化后的GAT模型（可选）
 （用的zipf的数据，2.0偏度下160000条流）
 
-6.$Sketch_name$_dnn_gat_test.py 测试性能
+6.$Sketch\_name$_dnn_gat_test.py 测试性能
 
 ## 其他：
 
