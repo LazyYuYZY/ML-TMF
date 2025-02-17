@@ -16,7 +16,7 @@ $Sketch\_name$={cm, tower, cu, count}
 4.flows_hash.py 五元组映射为数字
 为方便后续处理，将流的五元组映射为整数
 
-5.1.DNN/DNN_$Sketch_name$.py 训练DNN模型
+5.1.DNN/DNN_$Sketch\_name$.py 训练DNN模型
 （用的MAWI231101的数据，随机选择一个时间片下的数据）
 
 5.2.GAT/GAT_DNN_d.py 训练优化后的GAT模型（可选）
