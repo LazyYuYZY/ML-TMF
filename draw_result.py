@@ -322,6 +322,238 @@ def plot_bar_fourtarces():
     plt.show()
 
 
+def draw_are_vs_memory(w0=10000):
+    """
+    绘制 CM-SSC, CM-MMC, ELASTIC, FCM, Seqsketch, Embedsketch 六种方法的 lg(ARE) 随内存变化的折线图
+    """
+    memory_list = [8, 12, 16, 24, 32]
+    w_list = [m * w0 for m in memory_list]          # 用于 CM-SSC/MMC 的文件名参数
+    x_mb = np.array(memory_list) * 0.12             # 横坐标内存大小 (MB)
+
+    # 六种方法的显示标签与对应的数据读取规则
+    # 前两种：CM-SSC, CM-MMC
+    methods = [
+        ("CM-SSC",  "Memory/DNN",  True),
+        ("CM-MMC",  "Memory/GAT",  True),
+        ("ELASTIC", "elastic/elastic_memory", False),
+        ("FCM",     "fcm/fcm_memory", False),
+        ("Seqsketch", "seqsketch/seq_memory_errors", False),
+        ("Embedsketch", "embedsketch/embed_memory_errors", False)
+    ]
+
+    n_methods = len(methods)
+    n_mem = len(memory_list)
+
+    # 确定重复实验次数（通过读取第一个文件第一行的列数获得）
+    # 先尝试读取一个 CM-SSC 文件获取重复次数
+    try:
+        sample_data = np.loadtxt(f"./results/wide/Memory/DNN_{w_list[0]}.txt")
+        if sample_data.ndim == 1:
+            n_repeats = len(sample_data)
+        else:
+            n_repeats = sample_data.shape[1]  # 第一行作为多次实验
+    except:
+        n_repeats = 10  # 默认值
+
+    # 初始化数据数组 shape: (n_methods, n_mem, n_repeats)
+    data_all = np.full((n_methods, n_mem, n_repeats), np.nan)
+
+    for i, (label, rel_path, per_mem_file) in enumerate(methods):
+        if i>3:
+            continue
+        if per_mem_file:
+            # 每个内存一个独立文件
+            for j, w in enumerate(w_list):
+                path = f"./results/wide/{rel_path}_{w}.txt"
+                try:
+                    arr = np.loadtxt(path)
+                    if arr.ndim == 1:
+                        vals = arr
+                    else:
+                        vals = arr[0, :]        # 取第一行
+                    data_all[i, j, :len(vals)] = vals
+                except Exception as e:
+                    print(f"读取失败: {path}, {e}")
+        else:
+            # 汇总文件，每行对应一个内存档位
+            path = f"./results/wide/{rel_path}.txt"
+            try:
+                arr = np.loadtxt(path)
+                for j in range(n_mem):
+                    if arr.ndim == 1:
+                        vals = arr if j == 0 else np.array([])
+                    else:
+                        vals = arr[j, :] if j < arr.shape[0] else np.array([])
+                    data_all[i, j, :len(vals)] = vals
+            except Exception as e:
+                print(f"读取失败: {path}, {e}")
+
+    # 计算均值、方差和置信区间
+    y_mean = np.nanmean(data_all, axis=2)
+    y_var  = np.nanvar(data_all, axis=2)
+    y_err  = 1.96 * np.sqrt(y_var / n_repeats)
+
+    # 对数坐标下的误差棒转换
+    # 如果 ARE 可能为0或负，需要处理，假设 ARE 为正数
+    y_mean_lg = np.log10(y_mean)
+    y_err_lg = np.full((2, n_methods, n_mem), 0.0)
+    for i in range(n_methods):
+        for j in range(n_mem):
+            mean_val = y_mean[i, j]
+            err_val = y_err[i, j]
+            if mean_val > err_val:
+                lower = np.log10(mean_val) - np.log10(mean_val - err_val)
+            else:
+                lower = np.log10(mean_val + err_val) - np.log10(mean_val)
+            upper = np.log10(mean_val + err_val) - np.log10(mean_val)
+            y_err_lg[0, i, j] = lower
+            y_err_lg[1, i, j] = upper
+
+    # 绘图设置
+    fmts = ['o', 'v', 'p', 'd', 'h', '*']
+    fig, ax = plt.subplots(figsize=(5, 4))
+
+    for i, (label, _, _) in enumerate(methods):
+        if i>3:
+            continue
+        ax.errorbar(x_mb, y_mean_lg[i, :],
+                    yerr=y_err_lg[:, i, :],
+                    color=color_list[i % len(color_list)],
+                    marker=fmts[i], markersize=7, markerfacecolor='none',
+                    linewidth=1.5, capsize=3, label=label)
+
+    # 坐标轴与字体设置（参考 draws_all）
+    ax.set_xlabel("Memory (MB)", fontsize=14, fontname='Times New Roman')
+    ax.set_ylabel("lg(ARE)", fontsize=14, fontname='Times New Roman')
+    ax.tick_params(axis='both', which='major', labelsize=12)
+    for label in ax.get_xticklabels() + ax.get_yticklabels():
+        label.set_fontname('Times New Roman')
+
+    # 边框加粗
+    for spine in ax.spines.values():
+        spine.set_linewidth(2.0)
+
+    # 图例置于顶部
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.2), ncol=2,
+              prop={'family': 'Times New Roman', 'size': 12})
+
+    ax.grid(True, linestyle='--', alpha=0.6)
+    ax.set_axisbelow(True)
+
+    fig.patch.set_facecolor('none')
+    ax.set_facecolor('none')
+    fig.subplots_adjust(left=0.15, right=0.95, top=0.85, bottom=0.15)
+
+    plt.show()
+
+def draw_ml_are_vs_memory(w0=10000):
+    """
+    绘制 CM, CM-SSC, CM-GNN, CM-MMC 四种机器学习相关方法的 lg(ARE) 随内存变化的折线图
+    """
+    memory_list = [8, 12, 16, 24, 32]
+    w_list = [m * w0 for m in memory_list]
+    x_mb = np.array(memory_list) * 0.12   # 内存（MB）
+
+    # 四种方法的标签、相对路径及是否为每个内存独立文件
+    # 请根据你的实际文件名修改路径
+    methods = [
+        ("CM",      "Memory/CM",      True),
+        ("CM-SSC",  "Memory/DNN",     True),   # 或 "Memory/CM-SSC"
+        ("CM-GNN",  "Memory/GNN",     True),   # 假设 GNN 文件名为 GNN
+        ("CM-MMC",  "Memory/GAT",     True),   # 或 "Memory/CM-MMC"
+    ]
+
+    n_methods = len(methods)
+    n_mem = len(memory_list)
+
+    # 尝试获取重复实验次数
+    try:
+        sample_data = np.loadtxt(f"./results/wide/Memory/CM_{w_list[0]}.txt")
+        if sample_data.ndim == 1:
+            n_repeats = len(sample_data)
+        else:
+            n_repeats = sample_data.shape[1]
+    except:
+        n_repeats = 10
+
+    # 初始化数据数组
+    data_all = np.full((n_methods, n_mem, n_repeats), np.nan)
+
+    for i, (label, rel_path, per_mem_file) in enumerate(methods):
+        if per_mem_file:
+            for j, w in enumerate(w_list):
+                path = f"./results/wide/{rel_path}_{w}.txt"
+                try:
+                    arr = np.loadtxt(path)
+                    if arr.ndim == 1:
+                        vals = arr
+                    else:
+                        vals = arr[0, :]          # 第一行为该内存下的多次实验
+                    data_all[i, j, :len(vals)] = vals
+                except Exception as e:
+                    print(f"读取失败: {path}, {e}")
+        else:
+            # 如果将来有汇总文件也可处理
+            path = f"./results/wide/{rel_path}.txt"
+            try:
+                arr = np.loadtxt(path)
+                for j in range(n_mem):
+                    if arr.ndim == 1:
+                        vals = arr if j == 0 else np.array([])
+                    else:
+                        vals = arr[j, :] if j < arr.shape[0] else np.array([])
+                    data_all[i, j, :len(vals)] = vals
+            except Exception as e:
+                print(f"读取失败: {path}, {e}")
+
+    # 计算均值、方差、95%置信区间
+    y_mean = np.nanmean(data_all, axis=2)
+    y_var  = np.nanvar(data_all, axis=2)
+    y_err  = 1.96 * np.sqrt(y_var / n_repeats)
+
+    # 转换为对数坐标及误差棒
+    y_mean_lg = np.log10(y_mean)
+    y_err_lg = np.full((2, n_methods, n_mem), 0.0)
+    for i in range(n_methods):
+        for j in range(n_mem):
+            mean_val = y_mean[i, j]
+            err_val = y_err[i, j]
+            if mean_val > err_val:
+                lower = np.log10(mean_val) - np.log10(mean_val - err_val)
+            else:
+                lower = np.log10(mean_val + err_val) - np.log10(mean_val)
+            upper = np.log10(mean_val + err_val) - np.log10(mean_val)
+            y_err_lg[0, i, j] = lower
+            y_err_lg[1, i, j] = upper
+
+    # 绘图
+    fmts = ['o', 'v', 'p', 'd', 'h', '*']
+    fig, ax = plt.subplots(figsize=(5, 4))
+
+    for i, (label, _, _) in enumerate(methods):
+        ax.errorbar(x_mb, y_mean_lg[i, :],
+                    yerr=y_err_lg[:, i, :],
+                    color=color_list[i % len(color_list)],
+                    marker=fmts[i], markersize=7, markerfacecolor='none',
+                    linewidth=1.5, capsize=3, label=label)
+
+    # 样式设置
+    ax.set_xlabel("Memory (MB)", fontsize=14, fontname='Times New Roman')
+    ax.set_ylabel("lg(ARE)", fontsize=14, fontname='Times New Roman')
+    ax.tick_params(axis='both', which='major', labelsize=12)
+    for label in ax.get_xticklabels() + ax.get_yticklabels():
+        label.set_fontname('Times New Roman')
+    for spine in ax.spines.values():
+        spine.set_linewidth(2.0)
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.2), ncol=2,
+              prop={'family': 'Times New Roman', 'size': 12})
+    ax.grid(True, linestyle='--', alpha=0.6)
+    ax.set_axisbelow(True)
+    fig.patch.set_facecolor('none')
+    ax.set_facecolor('none')
+    fig.subplots_adjust(left=0.15, right=0.95, top=0.85, bottom=0.15)
+
+    plt.show()
 
 
 if __name__ == '__main__':
@@ -331,7 +563,8 @@ if __name__ == '__main__':
     memory_list = [8, 12, 16, 24, 32]
     alpha_list = [1.6, 1.8, 2.0, 2.2, 2.4]
     T_list = [5, 10, 15, 20, 25, 30]
-    p_drop=[0.01, 0.001, 0.0001, 0.00001, 0.000001]
+    p_drop=[0.1,0.01, 0.001, 0.0001, 0.00001]
+    memory_bloom_list=[16,24,32,40,48]
     # draw_bar()
     # plot_bar_fourtarces()
     # plot_bar_MLsketch()
@@ -370,17 +603,16 @@ if __name__ == '__main__':
     #         plots_np[k, i, :, :] = np.loadtxt(results_path)
     # draws_all(x_list=T_list, y_np=plots_np, x_label="T", real=1, X_Label="The length of measurement periods(s)")
 
-    plots_np = np.full((len(sketchs_list), len(p_drop), 6, 10), 0, dtype=float)
-    for i in range(len(p_drop)):
-        for k in range(len(sketchs_list)):
-            drop_flow = p_drop[i]
-            results_path = "./results/wide/" + "Bloom" + "/" + sketchs_list[k] + "_" + str(int(-np.log10(drop_flow))) + ".txt"
-            plots_np[k, i, :, :] = np.loadtxt(results_path)
-    print(-np.log10(np.array(p_drop)))
-    p_drop=-np.log10(np.array(p_drop))
-    draws_all(x_list=p_drop, y_np=plots_np, x_label="p", real=1, X_Label="-lg(r)")
+    # plots_np = np.full((len(sketchs_list), len(p_drop), 6, 10), 0, dtype=float)
+    # for i in range(len(p_drop)):
+    #     for k in range(len(sketchs_list)):
+    #         drop_flow = p_drop[i]
+    #         results_path = "./results/wide/" + "Bloom" + "/" + sketchs_list[k] + "_" + str(int(-np.log10(drop_flow))) + ".txt"
+    #         plots_np[k, i, :, :] = np.loadtxt(results_path)
+    # print(-np.log10(np.array(p_drop)))
+    # p_drop=-np.log10(np.array(p_drop))
+    # draws_all(x_list=p_drop, y_np=plots_np, x_label="p", real=1, X_Label="-lg(r)")
 
+    # draw_are_vs_memory()
 
-
-
-    #
+    draw_ml_are_vs_memory()
