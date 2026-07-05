@@ -7,7 +7,7 @@ Sketch_name={cm, tower, cu, count}
 
 1.wareshake打开终端editcap.exe 切割 MAWI数据***数据集过大就不放置分割后的文件夹***
 
-.\editcap -i 5 .\202311011400.pcap .\traindata_set_5s\traindata_pcap_5s\20240103_5s.pcap
+.\editcap -i 5 .\202311011400.pcap .\traindata_set_5s\traindata_pcap_5s\20231101_5s.pcap
 
 (.\editcap -i $Tslice$ .\ $trace$ $foldername$ \ $filename$)
 
